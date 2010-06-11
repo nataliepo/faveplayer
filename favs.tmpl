@@ -1,0 +1,117 @@
+<h1>These are my Favorite TypePad Posts.</h1>
+<p>A little bit of <a href="http://github.com/nataliepo/faveplayer">JQuery</a> is pulling my list of Favorites dynamically from TypePad.  Pretty neat, huh?</p>
+
+
+
+<div id="faves">
+    <p align="right">
+        <a href="#" id="permalink">view the original post</a>&nbsp;|&nbsp;
+        <a href="#" id="see-next">check out my next fav&rarr;</a>
+    </p>
+    <h2><a href="#" target="_new" id="title"></a></h2>
+    
+    <div id="fave-content"></div>
+
+</div>
+
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+<script type="text/javascript">
+var profileAlias = 'nataliepo';
+
+$.fn.centerize = function () {
+    var ph = $( document ).height();
+    var pw = $( document ).width();
+    return this.each( function ( i ) {
+        var ah = $( this ).height();
+        var aw = $( this ).width();
+        var mh = ( ph - ah ) / 2;
+        var mw = ( pw - aw ) / 2;
+        $( this ).css( {
+            top: mh,
+            left: mw
+        } );
+    } );
+};
+
+$( window ).resize( function () {
+    $( '#faves' ).centerize();
+} );
+
+var entries = new Array();
+var currentEntry = 0; // 1-based index into the entries array
+var seenFirst = false;
+
+$( document ).ready( function() {
+    $( '#see-next' ).click( function() {
+        seeentry();
+        return false;
+    } );
+    
+    loadmore();
+} );
+
+function loadmore() {    
+    $.getJSON(
+        'http://api.typepad.com/users/' + escape( profileAlias ) + '/favorites.js?callback=?',
+        {
+            'start-index': currentEntry + 1,
+            'max-results': 15
+        },
+        function( data ) {
+            for ( var i = 0; i < data.entries.length; i++ ) {
+                $.getJSON(
+                    'http://api.typepad.com/assets/' + data.entries[ i ].inReplyTo.urlId + '.js?callback=?',
+                    function( entry ) {
+                        entries.push( entry );
+                        if ( !seenFirst ) seeentry();
+                    }
+                );
+            }
+        }
+    );
+}
+
+function seeentry() {
+    seenFirst = true;
+
+    var asset = entries[ currentEntry ];
+    if ( !asset ) {
+        seenFirst = false;
+        loadmore();
+        return;
+    }
+
+    $( '#fave-content' ).empty();
+
+    var image = null;
+    if ( asset.imageLink ) {
+        image = asset.imageLink;
+    } else if ( asset.previewImageLink ) {
+        image = asset.previewImageLink;
+    } else if ( asset.embeddedImageLinks && asset.embeddedImageLinks.length > 0 ) {
+        image = asset.embeddedImageLinks[0];
+    }
+
+    $( '#title' ).attr( 'href', asset.permalinkUrl );
+    if ( asset.title ) {
+        $( '#title' ).text( asset.title );
+        document.title = asset.title;
+    } else {
+        $( '#title' ).empty();
+    }
+    
+    $( '#permalink' ).attr( 'href', asset.permalinkUrl );
+
+    if ( image && image.urlTemplate ) {
+        $( '#fave-content' ).append( '<p><img src="' + image.urlTemplate.replace( '{spec}', '350wi' ) + '" /></p>' );
+    }
+    
+    if ( asset.excerpt ) {
+        $( '#fave-content' ).append( '<p>' + asset.excerpt + '</p>' );
+    }
+
+    $( '#faves' ).centerize();
+    currentEntry++;
+}
+</script>
